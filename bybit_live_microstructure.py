@@ -1,5 +1,6 @@
 import time
 import math
+import threading
 import numpy as np
 from collections import deque
 from pybit.unified_trading import WebSocket, HTTP
@@ -94,11 +95,34 @@ def process_live_market_flow(message):
     except Exception as e:
         pass
 
+def run_dummy_port_server():
+    """Binds an empty background socket server to satisfy Render's Free Web Service rules"""
+    import socket
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(("0.0.0.0", port))
+    server.listen(1)
+    print(f"🔓 DUMMY SERVER ONLINE: Port binding secured on Port {port}.")
+    while True:
+        try:
+            client, addr = server.accept()
+            client.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nBot Active!")
+            client.close()
+        except:
+            time.sleep(1)
+
 print("=====================================================================")
 print("          INITIALIZING BYBIT MICROSTRUCTURE TESTNET BOT              ")
 print(f" Risk Parameters Locked: Balance ${SIMULATED_BALANCE} | Risk Cap: {MAX_RISK_PCT*100}% ")
 print("=====================================================================")
 
+# Launch the Render dummy port responder in a separate background thread
+server_thread = threading.Thread(target=run_dummy_port_server, daemon=True)
+server_thread.start()
+
+# Initialize Real-Time Streaming Data Channel Pipe Hook
 ws = WebSocket(testnet=True, channel_type="linear")
 ws.trade_stream(symbol="BTCUSDT", callback=process_live_market_flow)
 
