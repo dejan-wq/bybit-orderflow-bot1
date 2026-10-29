@@ -1,15 +1,19 @@
 import time
 import math
 import threading
+import requests
 import numpy as np
 from collections import deque
 from pybit.unified_trading import WebSocket, HTTP
 
 # =====================================================================
-# CONFIGURATION PASTE ZONE (WORKING TESTNET KEYS RESTORED)
+# CONFIGURATION PASTE ZONE (RESTORED KEYS & ADDED NTFY PROFILE)
 # =====================================================================
 TESTNET_API_KEY = "dflRDmqEPlzK9r2PVb"
 TESTNET_API_SECRET = "GgBe22xCJeUVlST41bCKP1UyLWLwO0fIjgUt"
+
+# 🔔 PUT YOUR UNIQUE NTFY TOPIC STRING INSIDE THESE QUOTES:
+NTFY_TOPIC = "YOUR_EXISTING_NTFY_TOPIC_NAME"
 
 SIMULATED_BALANCE = 1000.0   # Your Demo Account Target Balance
 MAX_RISK_PCT = 0.02          # Your strict 2% Capital Defender Rule
@@ -26,6 +30,17 @@ session = HTTP(
     api_key=TESTNET_API_KEY,
     api_secret=TESTNET_API_SECRET
 )
+
+def send_ntfy_alert(title, message, priority="default"):
+    """Transmits real-time trade signals straight to your phone via Ntfy app"""
+    if not NTFY_TOPIC or "YOUR_EXISTING" in NTFY_TOPIC:
+        return
+    try:
+        url = f"https://ntfy.sh{NTFY_TOPIC}"
+        headers = {"Title": title, "Priority": priority}
+        requests.post(url, data=message, headers=headers, timeout=5)
+    except Exception as e:
+        print(f"\n⚠️ Ntfy Dispatch Alert Failed: {e}")
 
 def calculate_regression_slope(data_series):
     if len(data_series) < 15:
@@ -49,6 +64,16 @@ def execute_testnet_short(symbol, entry_price, stop_loss):
         qty = calculate_position_size(entry_price, stop_loss)
         if qty <= 0:
             return
+        
+        real_exposure = qty * entry_price
+        
+        # Dispatch Pre-Trade Notification
+        send_ntfy_alert(
+            title="🐋 ORDER FLOW SIGNAL INTERCEPTED",
+            message=f"Absorption wall found at ${entry_price:,.2f}.\nTransmitting market short order for {qty} BTC (~${real_exposure:,.2f}).",
+            priority="high"
+        )
+        
         print(f"\n[🚀 TRANSMITTING ORDER] Deploying short order for {qty} BTC...")
         order = session.place_order(
             category="linear",
@@ -60,9 +85,19 @@ def execute_testnet_short(symbol, entry_price, stop_loss):
             stopLoss=str(round(stop_loss, 1)),
             slTriggerBy="LastPrice"
         )
-        print(f" └─ Order Placed on Testnet! Order ID: {order['result']['orderId']}")
+        
+        order_id = order['result']['orderId']
+        print(f" └─ Order Placed on Testnet! Order ID: {order_id}")
+        
+        # Dispatch Execution Confirmation Notification
+        send_ntfy_alert(
+            title="🚀 POSITION FULLY EXECUTED",
+            message=f"SHORT Entry Filled successfully!\nSize: {qty} BTC at ${entry_price:,.2f}\nStop-Loss Bound Set: ${stop_loss:,.2f}\nID: {order_id}",
+            priority="urgent"
+        )
     except Exception as e:
         print(f"Execution Engine Error: {e}")
+        send_ntfy_alert("❌ Execution Refused", f"Bybit Error: {e}", priority="high")
 
 def process_live_market_flow(message):
     global rolling_cvd
@@ -118,6 +153,9 @@ print("          INITIALIZING BYBIT MICROSTRUCTURE TESTNET BOT              ")
 print(f" Risk Parameters Locked: Balance ${SIMULATED_BALANCE} | Risk Cap: {MAX_RISK_PCT*100}% ")
 print("=====================================================================")
 
+# Send a boot notification to verify the link works instantly on startup
+send_ntfy_alert("🤖 ALGORITHM CONNECTED", "Bybit Orderflow Engine is running successfully on Frankfurt Free Tier Cloud Instance.", "low")
+
 # Launch the Render dummy port responder in a separate background thread
 server_thread = threading.Thread(target=run_dummy_port_server, daemon=True)
 server_thread.start()
@@ -131,3 +169,4 @@ try:
         time.sleep(1)
 except KeyboardInterrupt:
     print("\nDisconnecting cleanly from Bybit Testnet. Bot sleeping.")
+
