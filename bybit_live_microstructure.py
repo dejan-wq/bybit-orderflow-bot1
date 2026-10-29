@@ -13,7 +13,7 @@ TESTNET_API_KEY = "dflRDmqEPlzK9r2PVb"
 TESTNET_API_SECRET = "GgBe22xCJeUVlST41bCKP1UyLWLwO0fIjgUt"
 
 # 🔔 PUT YOUR UNIQUE NTFY TOPIC STRING INSIDE THESE QUOTES:
-NTFY_TOPIC = "orderflow-bot"
+NTFY_TOPIC = "rmusevdwdvcdmw9akfy6"
 
 SIMULATED_BALANCE = 1000.0   # Your Demo Account Target Balance
 MAX_RISK_PCT = 0.02          # Your strict 2% Capital Defender Rule
